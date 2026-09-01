@@ -31,7 +31,7 @@ class PersistentVoiceBot(commands.Bot):
         intents = discord.Intents.default()
         intents.message_content = True
         intents.voice_states = True
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(command_prefix="k!", intents=intents)
         self.keep_alive_task = None
 
     async def on_ready(self):
@@ -80,35 +80,37 @@ if __name__ == "__main__":
     bot = PersistentVoiceBot()
     # --- MANUAL JOIN OVERRIDE COMMAND ---
 # --- MANUAL JOIN OVERRIDE COMMAND ---
+# --- REVISED OVERRIDE COMMAND WITH TIMEOUT PROXY ---
 @bot.command()
 async def join(ctx):
-    # Read variables securely from Render's Environment settings
     voice_id = int(os.environ.get("VOICE_CHANNEL_ID", 0))
-    
     if voice_id == 0:
-        await ctx.send("Error: VOICE_CHANNEL_ID environment variable is missing on Render!")
+        await ctx.send("Missing VOICE_CHANNEL_ID on Render.")
         return
 
-    # Try to get from cache first; if not found, fetch directly from Discord API
     channel = bot.get_channel(voice_id)
     if not channel:
         try:
             channel = await bot.fetch_channel(voice_id)
         except Exception as e:
-            await ctx.send(f"Error fetching channel from Discord API: {e}")
+            await ctx.send(f"API Fetch Error: {e}")
             return
 
     if channel:
         try:
-            # Check if already connected to a voice channel in this server
+            # Force move if already active, or establish connection with a 10s strict timeout
             voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
             if voice_client and voice_client.is_connected():
                 await voice_client.move_to(channel)
+                await ctx.send(f"Moved to {channel.mention}!")
             else:
-                await channel.connect(reconnect=True, self_deaf=True)
-            await ctx.send(f"Successfully joined {channel.mention}!")
+                await ctx.send("Attempting connection to voice node...")
+                await channel.connect(reconnect=True, self_deaf=True, timeout=10.0)
+                await ctx.send(f"Successfully joined {channel.mention}!")
+        except asyncio.TimeoutError:
+            await ctx.send("Connection timed out! Check if Discord voice servers are lagging or blocking Render's IP range.")
         except Exception as e:
-            await ctx.send(f"Failed to connect to voice engine: {e}")
+            await ctx.send(f"Voice engine crash: {e}")
 
 
     bot.run(BOT_TOKEN)
