@@ -13,21 +13,16 @@ def home():
     return "Bot is alive!"
 
 def run_flask():
-    # Render provides a PORT environment variable dynamically
     port = int(os.environ.get("PORT", 10000))
-    # CRITICAL FIX: set use_reloader=False so it doesn't create duplicate threads
     app.run(host='0.0.0.0', port=port, use_reloader=False)
 
 def keep_alive():
-    # Create an isolated background thread for the Flask web server
     t = Thread(target=run_flask)
-    # Set daemon=True so the thread closes automatically if the main program stops
     t.daemon = True
     t.start()
 
 
 # --- DISCORD BOT CODE ---
-# Read variables securely from Render's Environment settings
 VOICE_CHANNEL_ID = int(os.environ.get("VOICE_CHANNEL_ID", 0))
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
@@ -76,16 +71,12 @@ class PersistentVoiceBot(commands.Bot):
                     except Exception as e:
                         print(f"Voice state loop error: {e}")
 
+# --- INITIALIZE BOT INSTANCE ---
+# This must be done BEFORE declaring commands
+bot = PersistentVoiceBot()
 
 
-
-# --- STARTUP ---
-if __name__ == "__main__":
-    keep_alive() # Starts the web server in the background
-    bot = PersistentVoiceBot()
-    # --- MANUAL JOIN OVERRIDE COMMAND ---
 # --- MANUAL JOIN OVERRIDE COMMAND ---
-# --- REVISED OVERRIDE COMMAND WITH TIMEOUT PROXY ---
 @bot.command()
 async def join(ctx):
     voice_id = int(os.environ.get("VOICE_CHANNEL_ID", 0))
@@ -103,7 +94,6 @@ async def join(ctx):
 
     if channel:
         try:
-            # Force move if already active, or establish connection with a 10s strict timeout
             voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
             if voice_client and voice_client.is_connected():
                 await voice_client.move_to(channel)
@@ -118,4 +108,13 @@ async def join(ctx):
             await ctx.send(f"Voice engine crash: {e}")
 
 
-    bot.run(BOT_TOKEN)
+# --- STARTUP ENGINE ---
+if __name__ == "__main__":
+    if not BOT_TOKEN or VOICE_CHANNEL_ID == 0:
+        print("CRITICAL LOG ERROR: Core environment variables are missing on Render configuration tabs.")
+    else:
+        keep_alive()
+        try:
+            bot.run(BOT_TOKEN)
+        except Exception as runtime_error:
+            print(f"Core runtime execution engine failure: {runtime_error}")
