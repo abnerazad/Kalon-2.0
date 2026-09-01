@@ -78,4 +78,15 @@ class PersistentVoiceBot(commands.Bot):
 if __name__ == "__main__":
     keep_alive() # Starts the web server in the background
     bot = PersistentVoiceBot()
+    # --- MANUAL JOIN OVERRIDE COMMAND ---
+@bot.command()
+async def join(ctx):
+    channel = bot.get_channel(VOICE_CHANNEL_ID)
+    if channel:
+        try:
+            await channel.connect(reconnect=True, self_deaf=True)
+            await ctx.send(f"Connected to {channel.mention}!")
+        except Exception as e:
+            await ctx.send(f"Failed to connect: {e}")
+
     bot.run(BOT_TOKEN)
