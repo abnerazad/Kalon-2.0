@@ -79,14 +79,36 @@ if __name__ == "__main__":
     keep_alive() # Starts the web server in the background
     bot = PersistentVoiceBot()
     # --- MANUAL JOIN OVERRIDE COMMAND ---
+# --- MANUAL JOIN OVERRIDE COMMAND ---
 @bot.command()
 async def join(ctx):
-    channel = bot.get_channel(VOICE_CHANNEL_ID)
+    # Read variables securely from Render's Environment settings
+    voice_id = int(os.environ.get("VOICE_CHANNEL_ID", 0))
+    
+    if voice_id == 0:
+        await ctx.send("Error: VOICE_CHANNEL_ID environment variable is missing on Render!")
+        return
+
+    # Try to get from cache first; if not found, fetch directly from Discord API
+    channel = bot.get_channel(voice_id)
+    if not channel:
+        try:
+            channel = await bot.fetch_channel(voice_id)
+        except Exception as e:
+            await ctx.send(f"Error fetching channel from Discord API: {e}")
+            return
+
     if channel:
         try:
-            await channel.connect(reconnect=True, self_deaf=True)
-            await ctx.send(f"Connected to {channel.mention}!")
+            # Check if already connected to a voice channel in this server
+            voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+            if voice_client and voice_client.is_connected():
+                await voice_client.move_to(channel)
+            else:
+                await channel.connect(reconnect=True, self_deaf=True)
+            await ctx.send(f"Successfully joined {channel.mention}!")
         except Exception as e:
-            await ctx.send(f"Failed to connect: {e}")
+            await ctx.send(f"Failed to connect to voice engine: {e}")
+
 
     bot.run(BOT_TOKEN)
