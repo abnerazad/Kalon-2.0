@@ -14,12 +14,17 @@ def home():
 
 def run_flask():
     # Render provides a PORT environment variable dynamically
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get("PORT", 10000))
+    # CRITICAL FIX: set use_reloader=False so it doesn't create duplicate threads
+    app.run(host='0.0.0.0', port=port, use_reloader=False)
 
 def keep_alive():
+    # Create an isolated background thread for the Flask web server
     t = Thread(target=run_flask)
+    # Set daemon=True so the thread closes automatically if the main program stops
+    t.daemon = True
     t.start()
+
 
 # --- DISCORD BOT CODE ---
 # Read variables securely from Render's Environment settings
