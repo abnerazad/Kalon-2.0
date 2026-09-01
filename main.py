@@ -61,18 +61,17 @@ class PersistentVoiceBot(commands.Bot):
             
             await asyncio.sleep(120)
 
-        async def on_voice_state_update(self, member, before, after):
-        """Instantly reconnect if someone manually disconnects or moves the bot."""
+            async def on_voice_state_update(self, member, before, after):
         if member.id == self.user.id:
-            # If the bot was disconnected from a channel
             if before.channel is not None and after.channel is None:
-                print("Bot was disconnected. Reconnecting immediately...")
+                print("Bot was disconnected. Reconnecting...")
                 channel = self.get_channel(VOICE_CHANNEL_ID)
                 if channel:
                     try:
                         await channel.connect(reconnect=True, self_deaf=True)
                     except Exception as e:
-                        print(f"Immediate reconnect failed: {e}")
+                        print(f"Reconnect failed: {e}")
+
 
 
 # --- STARTUP ---
